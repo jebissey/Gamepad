@@ -1,34 +1,26 @@
-﻿using HidSharp;
-using HidSharp.Utility;
-using System.Diagnostics;
+﻿using SDL2;
 
 namespace Gamepad;
 
 public class GamePad
 {
     #region Fields
-    private readonly DeviceList list = DeviceList.Local;
     private readonly Thread readingGamePadThread = new(new ThreadStart(ReadingGamepad));
+    private static IntPtr myJoystick;
 
-    private readonly List<HidDevice> devices = [];
-    private HidDevice device = null!;
-    private static HidStream stream = null!;
     private static bool listeningGamepad = false;
     #endregion
 
     public GamePad()
     {
-        HidSharpDiagnostics.EnableTracing = true;
-        HidSharpDiagnostics.PerformStrictChecks = true;
-
-        list.Changed += (sender, e) => ResetDevices();
         ResetDevices();
+
     }
 
     #region public methods
     public bool StartListening()
     {
-        if (stream == null) return false;
+        if (myJoystick == IntPtr.Zero) return false;
         listeningGamepad = true;
         readingGamePadThread.Start();
         return true;
@@ -37,40 +29,36 @@ public class GamePad
     public static void StopListening()
     {
         listeningGamepad = false;
+        SDL.SDL_JoystickClose(myJoystick);
     }
+
+    public static string GetJoystickName()
+    {
+        string joystickName = string.Empty;
+        if (myJoystick != IntPtr.Zero) joystickName = SDL.SDL_JoystickName(myJoystick);
+        return joystickName;
+    }
+
     #endregion
 
 
     #region Private methods
-    private void ResetDevices()
+    private static void ResetDevices()
     {
-        devices.Clear();
-        foreach (HidDevice hid in list.GetHidDevices())
-        {
-            try
-            {
-                string manufacturer = hid.GetManufacturer();
-                devices.Add(hid);
-                if (manufacturer == "FrSky")
-                {
-                    device = hid;
-                    if (!device.TryOpen(out stream)) throw new Exception("device opening failed.");
-                }
-            }
-            catch { }
-        }
+        _ = SDL.SDL_Init(SDL.SDL_INIT_EVERYTHING);
+        myJoystick = SDL.SDL_JoystickOpen(0);
     }
 
     private static void ReadingGamepad()
     {
         while (listeningGamepad)
         {
-            var dataFromGamepad = stream.Read();
-            string hex = BitConverter.ToString(dataFromGamepad).Replace("-", string.Empty);
-            Debug.WriteLine(hex);
+            
 
             Thread.Sleep(2000);
         }
     }
+
+
     #endregion
 }
