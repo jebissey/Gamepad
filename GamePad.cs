@@ -1,6 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using SDL2;
-using System.Diagnostics;
 
 namespace Gamepad;
 
@@ -8,23 +7,32 @@ public class GamePad
 {
     #region Fields
     private readonly Thread readingGamePadThread = new(new ThreadStart(ReadingGamepad));
-    private static IntPtr myJoystick;
-
+    private const int readingGamePadSleep = 100;
+    private static IntPtr joystick;
     private static bool listeningGamepad = false;
-
-    private static short[] Axes;
+    private static short[] axes = null!;
+    private static int numAxes;
+    private static byte[] buttons = null!;
+    private static int numButtons;
     #endregion
 
     public GamePad()
     {
         _ = SDL.SDL_Init(SDL.SDL_INIT_JOYSTICK);
-        myJoystick = SDL.SDL_JoystickOpen(0);
+        joystick = SDL.SDL_JoystickOpen(0);
     }
 
     #region public methods
     public bool StartListening()
     {
-        if (myJoystick == IntPtr.Zero) return false;
+        if (joystick == IntPtr.Zero) return false;
+
+        numAxes = SDL.SDL_JoystickNumAxes(joystick);
+        axes = new short[numAxes];
+
+        numButtons = SDL.SDL_JoystickNumButtons(joystick);
+        buttons = new byte[numButtons];
+
         listeningGamepad = true;
         readingGamePadThread.Start();
         return true;
@@ -33,53 +41,54 @@ public class GamePad
     public static void StopListening()
     {
         listeningGamepad = false;
-        SDL.SDL_JoystickClose(myJoystick);
     }
 
     public static string GetJoystickName()
     {
         string joystickName = string.Empty;
-        if (myJoystick != IntPtr.Zero) joystickName = SDL.SDL_JoystickName(myJoystick);
+        if (joystick != IntPtr.Zero) joystickName = SDL.SDL_JoystickName(joystick);
         return joystickName;
     }
 
-    public static short GetAxes(int axes) => Axes[axes];
+    public static short GetAxis(int axis) => axis < axes.Length ? axes[axis] : short.MinValue;
+    public static short GetButton(int button) => button < buttons.Length ? buttons[button] : byte.MinValue;
     #endregion
 
 
     #region Private methods
     private static void ReadingGamepad()
     {
-        int numAxes = SDL.SDL_JoystickNumAxes(myJoystick);
-        Axes = new short[numAxes];
-
-        int numButtons = SDL.SDL_JoystickNumButtons(myJoystick);
-
         while (listeningGamepad)
         {
             SDL.SDL_PumpEvents();
 
+            bool newAxesValues = false;
             for (int i = 0; i < numAxes; i++)
             {
-                Axes[i] = SDL.SDL_JoystickGetAxis(myJoystick, i);
+                short currentValue = SDL.SDL_JoystickGetAxis(joystick, i);
+                if (currentValue != axes[i])
+                {
+                    axes[i] = currentValue;
+                    newAxesValues = true;
+                }
             }
+            if(newAxesValues) _ = WeakReferenceMessenger.Default.Send(axes);
 
-            // Loop over each buttons
-            //for (int i = 0; i < numButtons; i++)
-            //{
-            //    // Get the value of the axis
-            //    byte buttonValue = SDL.SDL_JoystickGetButton(myJoystick, i);
+            bool newButtonsValues = false;
+            for (int i = 0; i < numButtons; i++)
+            {
+                byte currentValue = SDL.SDL_JoystickGetButton(joystick, i);
+                if (currentValue != buttons[i])
+                {
+                    buttons[i] = currentValue;
+                    newButtonsValues = true;
+                }
+            }
+            if (newButtonsValues) _ = WeakReferenceMessenger.Default.Send(buttons);
 
-            //    // Print the value of the axis
-            //    Debug.WriteLine("Button " + i + " value: " + buttonValue);
-            //}
-
-            _ = WeakReferenceMessenger.Default.Send(Axes);
-
-            Thread.Sleep(100);
+            Thread.Sleep(readingGamePadSleep);
         }
+        SDL.SDL_JoystickClose(joystick);
     }
-
-
     #endregion
 }
