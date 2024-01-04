@@ -5,10 +5,20 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Title>Gamepad reader</Title>
+    <Description>Return values of sticks and buttons of connected gamepad</Description>
+    <PackageTags>gamepad joystick c#</PackageTags>
+    <AssemblyVersion>0.1</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove=".git" />
+    <None Remove=".gitignore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="ppy.SDL2-CS" Version="1.0.82" />
   </ItemGroup>
 
 </Project>
