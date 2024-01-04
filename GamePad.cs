@@ -50,8 +50,8 @@ public class GamePad
         return joystickName;
     }
 
-    public static short GetAxis(int axis) => axis < axes.Length ? axes[axis] : short.MinValue;
-    public static short GetButton(int button) => button < buttons.Length ? buttons[button] : byte.MinValue;
+    public static short GetAxis(int axis) => axes != null && axis < axes.Length ? axes[axis] : short.MinValue;
+    public static short GetButton(int button) => buttons != null && button < buttons.Length ? buttons[button] : byte.MinValue;
     #endregion
 
 
